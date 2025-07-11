@@ -12,17 +12,16 @@ typedef struct normal{
 } normal;
 
 
-typedef struct triangle3N {
+typedef struct triangle3N2T {
     int v1,v2,v3;
     int vt1, vt2, vt3;
     int vn1, vn2, vn3;
 } triangle;
 
-typedef struct triangle3N2T {
+typedef struct triangle3N {
     int v1,v2,v3;
     int vt1, vt2, vt3;
-    texture coords;
-} triangle;
+} triangle_nt;
 
 typedef struct texture {
     float u,v,w;
