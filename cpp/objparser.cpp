@@ -73,7 +73,7 @@ void read(std::string path, vector<vertex>& vertices, vector<triangle>& triangle
             newt.v2 = v2;
             newt.v3 = v3;
 
-            newt.vt1 = vt2;
+            newt.vt1 = vt1;
             newt.vt2 = vt2;
             newt.vt3 = vt3;
 
