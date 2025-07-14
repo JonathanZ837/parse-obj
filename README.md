@@ -38,7 +38,7 @@ Using `perf stat` yields a report:
        1.493394118 seconds time elapsed
 
        0.686664000 seconds user
-       0.074011000 seconds sys
+       0.074011000 seconds sys](https://github.com/JonathanZ837/parse-obj/blob/main/README.md)
 
   
        
