@@ -1,8 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <format>
 #include <sstream>
 #include "objparser.hpp"
+#include <filesystem>
 
 using namespace std;
 
@@ -28,58 +30,36 @@ int main(int argc, char *argv[]) {
 void read(std::string path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures) {
     ifstream f_in(path);
     string line;
+    std::filesystem::path filePath = path; 
+    std::uintmax_t fileSize = std::filesystem::file_size(filePath);
+
+    vertices.reserve(fileSize/3);
+    triangles.reserve(fileSize/2);
+    normals.reserve(fileSize/3);
+    textures.reserve(fileSize/10);
 
     if (!f_in.is_open()) {
         cerr << "Failed to open file at " << path << '\n';
         return;
     }
 
-
     while (getline (f_in, line)) {
         if (line.starts_with("v ")) {  
-            float x,y,z;
-            sscanf(line.c_str(), "v %f %f %f", &x, &y, &z);
+            
             vertex newv;
-            newv.x = x;
-            newv.y = y;
-            newv.z = z;
+            sscanf(line.c_str(), "v %f %f %f", &newv.x, &newv.y, &newv.z);
             vertices.emplace_back(newv);
         } else if (line.starts_with("vn ")) {   
             normal newvn;
-            float x,y,z;
-            sscanf(line.c_str(), "vn %f %f %f", &x, &y, &z);
-            newvn.x = x;
-            newvn.y = y;
-            newvn.z = z;
+            sscanf(line.c_str(), "vn %f %f %f", &newvn.x, &newvn.y, &newvn.z);
             normals.emplace_back(newvn);
         } else if (line.starts_with("vt ")) {   
             texture newvt;
-            float u;
-            float v,w = 0;
-            sscanf(line.c_str(), "vt %f %f %f", &u, &v, &w);
-            newvt.u = u;
-            newvt.v = v;
-            newvt.w = w;
+            sscanf(line.c_str(), "vt %f %f %f", &newvt.u, &newvt.v, &newvt.w);
             textures.emplace_back(newvt);
         } else if (line.starts_with("f ")) {   
-            
-            int v1,vt1,vn1;
-            int v2,vt2,vn2;
-            int v3,vt3,vn3;
-            sscanf(line.c_str(), "f %d/%d/%d %d/%d/%d %d/%d/%d", &v1, &vt1, &vn1, &v2, &vt2, &vn2, &v3, &vt3, &vn3);
             triangle newt;
-
-            newt.v1 = v1;
-            newt.v2 = v2;
-            newt.v3 = v3;
-
-            newt.vt1 = vt1;
-            newt.vt2 = vt2;
-            newt.vt3 = vt3;
-
-            newt.vn1 = vn1;
-            newt.vn2 = vn2;
-            newt.vn3 = vn3;
+            sscanf(line.c_str(), "f %d/%d/%d %d/%d/%d %d/%d/%d", &newt.v1, &newt.vt1, &newt.vn1, &newt.v2, &newt.vt2, &newt.vn2, &newt.v3, &newt.vt3, &newt.vn3);
             triangles.emplace_back(newt);
         } 
     }
@@ -106,6 +86,23 @@ void write(std::string path, vector<vertex>& vertices, vector<triangle>& triangl
     for (auto f : triangles) {
         f_out << "f " << f.v1 << "/" << f.vt1 << "/" << f.vn1 << " " << f.v2 << "/" << f.vt2 << "/" << f.vn2 << " " << f.v3 << "/" << f.vt3 << "/" << f.vn3 << "\n";
     }
+
+
+    // for (auto v : vertices) {
+    //     f_out << std::format("v {} {} {}\n", v.x, v.y, v.z);
+    // }
+
+    // for (auto vn : normals) {
+    //     f_out << std::format("vn {} {} {}\n", vn.x, vn.y, vn.z);
+    // }
+
+    // for (auto vt : textures) {
+    //     f_out << std::format("vt {} {} {}\n", vt.u, vt.v, vt.w);
+    // }
+
+    // for (auto f : triangles) {
+    //     f_out << std::format("f {}/{}/{} {}/{}/{} {}/{}/{}\n", f.v1, f.vt1, f.vn1, f.v2, f.vt2, f.vn2,  f.v3, f.vt3, f.vn3);;
+    // }
 
     f_out.close();
 }
