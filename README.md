@@ -4,7 +4,7 @@ A C++ and python parser for Wavefront .OBJ file formats. To install, clone the r
 
 ## Testing Results
 
-Testing on the bunny.obj file from [https://casual-effects.com/data/] and takes the average of 3 runs using the `time` command in Linux.
+Testing on the bunny.obj file from https://casual-effects.com/data/ and takes the average of 3 runs using the `time` command in Linux.
 
 | Date & Version                            | real  | user  | sys  |
 |-------------------------------------------|-------|-------|------|
