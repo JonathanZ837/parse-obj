@@ -18,6 +18,10 @@ Observations:
 - vector.emplace_back did not make much of a difference versus vector.push_back
 - std:format made my program much slower than just using concatenations with << (but maybe my implementation is wrong)
 - vector.reserve() did make the program faster using some approximate heuristics baesd on file size.
+
+Comparisons to other obj loaders:
+- running the same file (bunny.obj) with fast_obj and tinyobjloader yields a read time of 0.20s and 0.71s, respectively. However, this testing was only done with reading the file, and doesn't include writing. Taking this into account, the most recent version of my program had a speed of .726s when only reading the file.
+- however, running a larger file (rungholt.obj) with fast_obj and tinyobjloader yielded a read time of 4.73s and 14.74s. My program had an average time over 3 runs of 12.011s, meaning my program has a comparable time to tinyobjloader, but is much slower than fast_obj.
   
 Notes about using vector.reserve:
 - Each file was about 40 bytes per line of code
