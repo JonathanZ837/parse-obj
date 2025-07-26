@@ -28,7 +28,7 @@ typedef struct texture {
 } texture;
 
 
-void read(const char* path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures);
+void readobj(const char* data, off_t startindex, off_t endindex, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures);
 
-void write(const char* path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures);
+void write(std::string path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures);
 
