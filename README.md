@@ -27,7 +27,8 @@ Read times:
 | Date & Version               | bunny.obj | rungholt.obj | 
 |-------------------------|-------|-------|
 | 07/17 (w/o using mmap)  | 0.644s | 9.892s |
-| 07/21 (using mmap)      | 0.358s | 4.689s |
+| 07/21 (using mmap and 1 thread)      | 0.358s | 4.689s |
+| 07/21 (using mmap and 1 thread w/PGO)      | 0.247s | 3.909s |
 | 07/24 (using 4 threads)      | 0.0821s | 1.378s |
 | 07/26 (using 8 threads)      | 0.0553s | 1.173s |
 | 07/27 (using 12 threads)      | 0.0513s | 1.061s |
