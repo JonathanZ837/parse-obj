@@ -49,6 +49,7 @@ Observations:
 Comparisons to other obj loaders:
 - reading the same file (bunny.obj) with fast_obj and tinyobjloader yields a read time of 0.20s and 0.71s, respectively, which are both slower than our 12-threaded program time of .062s.
 - reading a larger file (rungholt.obj) with fast_obj and tinyobjloader yielded a read time of 4.73s and 14.74s. My program had an average time over 3 runs of 1.061s, a faster time than both **fast_obj and tinyobjloader.**
+- testing rapidobj, another multithreaded obj parser, on rungholt, had an average parse time of 1.791s. This program parses the file and returns a Result object. Thus, since my program is not as feature-rich as rapidobj and can only return another obj file at a much slower time (~13s), rapidobj is still a much better parser.
   
 Notes about using vector.reserve:
 - Each file was about 40 bytes per line of code
