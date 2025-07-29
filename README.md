@@ -32,6 +32,7 @@ Read times:
 | 07/24 (using 4 threads)      | 0.0821s | 1.378s |
 | 07/26 (using 8 threads)      | 0.0553s | 1.173s |
 | 07/27 (using 12 threads)      | 0.0513s | 1.061s |
+| 07/28 (12 threads & PGO)      | 0.0512s | 0.924s |
 
 Write times: 
 
@@ -39,6 +40,7 @@ Write times:
 |-----------------------------|------|-------|
 | 07/17 (w/o using mmap)      | 0.792s | 12.239s |
 | 07/21 (using mmap)          | 1.100s | 21.459s|
+| 07/28 (w/o using mmap & PGO)      | 0.738s | 11.421 |
 
 Observations: 
 - vector.emplace_back did not make much of a difference versus vector.push_back
