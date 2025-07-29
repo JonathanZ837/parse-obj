@@ -64,18 +64,14 @@ int main(int argc, char *argv[]) {
             if (start < sb.st_size) start++;
         }
 
-        threads.emplace_back(
-            static_cast<void(*)(const char*, off_t, off_t,
-                                std::vector<vertex>&,
-                                std::vector<triangle>&,
-                                std::vector<normal>&,
-                                std::vector<texture>&)>(readobj),
+        threads.emplace_back(std::thread(
+            readobj,
             data, start, end,
             std::ref(local_vertices[i]),
             std::ref(local_triangles[i]),
             std::ref(local_normals[i]),
             std::ref(local_textures[i])
-        );
+        ));
     }
 
     for (auto& t : threads) {
