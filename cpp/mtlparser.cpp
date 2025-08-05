@@ -17,33 +17,7 @@ enum class parse_state {
      reading_map_Ks, maybe_Nx, reading_Ns, maybe_d, reading_d, maybe_Tr, reading_Tr, reading_Ni, maybe_illum, reading_illum, 
 };
 
-int main(int argc, char *argv[]) {
-    std::vector<material> materials;
-    auto start = std::chrono::high_resolution_clock::now();
-
-    if (argc != 3) {
-        std::cerr << "Must enter an input and output file path" << "\n";
-    }
-    int fd = open(argv[1], O_RDONLY);
-    struct stat sb;
-    if (fstat(fd, &sb) == -1) {
-        std::cerr << "couldn't get file size" << "\n";
-    }
-    void *file_in_memory = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    
-    char* data = static_cast<char*>(file_in_memory);
-
-    readmtl(data, 0, sb.st_size, materials);
-    
-    auto readend = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> read_seconds = readend - start;
-    std::cout << "Read time: " << read_seconds.count() << " seconds." << std::endl;
-
-    writemtl(argv[2], materials);
-
-}
-
-bool read_float(const char*& ptr, float& out) {
+inline bool read_float(const char*& ptr, float& out) {
 
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '\n' || *ptr == '\0') {out = 0; return false;}
@@ -54,7 +28,7 @@ bool read_float(const char*& ptr, float& out) {
     return true;
 }
 
-bool read_int(const char*& ptr, int& out) {
+inline bool read_int(const char*& ptr, int& out) {
     while (*ptr == ' ' || *ptr == '\t') ++ptr;
     if (*ptr == '\n' || *ptr == '\0') return false;
     char* end;
@@ -64,11 +38,22 @@ bool read_int(const char*& ptr, int& out) {
     return true;
 }
 
-void readmtl(const char* data, off_t startindex, off_t endindex, std::vector<material>& materials) {
+void readmtl(const char* path, std::vector<material>& materials) {
+
+    int fd = open(path, O_RDONLY);
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+        std::cerr << "couldn't get file size" << "\n";
+        return;
+    }
+    void *file_in_memory = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    
+    char* data = static_cast<char*>(file_in_memory);
+
     std::string currmtl;
     parse_state currstate = parse_state::start_of_line;
     int str_start = 0;
-    for (int i = startindex; i < endindex; i++) {
+    for (int i = 0; i < sb.st_size; i++) {
         char ch = data[i];
         switch (currstate) {
             case parse_state::start_of_line:
