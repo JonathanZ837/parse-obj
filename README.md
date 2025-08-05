@@ -1,6 +1,6 @@
 # parse-obj
 
-A C++ and python parser for Wavefront .OBJ file formats. To install, clone the repository with `git clone https://github.com/JonathanZ837/parse-obj` and cd into the desired folder. Use make in the C++ folder to build and do ./Objparser <input_file> <output_file>.
+A C++ and python parser for Wavefront .OBJ file formats. To install, clone the repository with `git clone https://github.com/JonathanZ837/parse-obj` and cd into the desired folder. Use make in the C++ folder to build and do ./Objparser <input_file> <output_file>. As of 08/05, it will now also parse the .mtl files if it exists.
 
 ## Testing Results
 
@@ -33,6 +33,7 @@ Read times:
 | 07/26 (using 8 threads)      | 0.0553s | 1.173s |
 | 07/27 (using 12 threads)      | 0.0513s | 1.061s |
 | 07/28 (12 threads & PGO)      | 0.0512s | 0.924s |
+| 08/05 (now includes mtl parser)      | ---- | 1.064s |
 
 Write times: 
 
