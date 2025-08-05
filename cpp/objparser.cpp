@@ -7,14 +7,23 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <cstring>
+#include <cassert>
+#include <pthread.h>
+#include <immintrin.h>
 
 #include "objparser.hpp"
+#include "mtlparser.hpp"
+
 
 int main(int argc, char *argv[]) {  
 	vector<vertex> vertices;
     vector<normal> normals;
     vector<triangle> triangles;
     vector<texture> textures;
+    std::string mtlpath;
+    vector<std::string> mtls;
+    vector<int> mtl_idx;
 
     if (argc != 3) {
         cout << "Improper usage: mmust do ./objparser [file_in.obj] [file_out.obj]" << "\n";
@@ -52,6 +61,9 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<normal>> local_normals(num_threads);
     std::vector<std::vector<triangle>> local_triangles(num_threads);
     std::vector<std::vector<texture>> local_textures(num_threads);
+    std::vector<std::vector<std::string>> local_mtls(num_threads);
+    std::vector<std::vector<int>> local_mtl_idx(num_threads);
+
 
     size_t chunk = sb.st_size / num_threads;
 
@@ -64,14 +76,30 @@ int main(int argc, char *argv[]) {
             if (start < sb.st_size) start++;
         }
 
+       
         threads.emplace_back(std::thread(
             readobj,
             data, start, end,
             std::ref(local_vertices[i]),
             std::ref(local_triangles[i]),
             std::ref(local_normals[i]),
-            std::ref(local_textures[i])
+            std::ref(local_textures[i]),
+            std::ref(mtlpath),
+            std::ref(local_mtls[i]),
+            std::ref(local_mtl_idx[i])
         ));
+
+        // set_thread_priority(threads.back(), SCHED_FIFO, 99);
+        
+        // cpu_set_t cpuset;
+        // CPU_ZERO(&cpuset);
+        // CPU_SET(0, &cpuset); 
+
+        // int rc = pthread_setaffinity_np(threads[i].native_handle(),
+        //                                 sizeof(cpu_set_t), &cpuset);
+        // if (rc != 0) {
+        //     std::cerr << "Error calling pthread_setaffinity_np: " << strerror(rc) << "\n";
+        // }
     }
 
     for (auto& t : threads) {
@@ -79,14 +107,40 @@ int main(int argc, char *argv[]) {
     }
 
 
+    std::vector<int> face_offsets(num_threads, 0);
+    for (int i = 1; i < num_threads; ++i) {
+        face_offsets[i] = face_offsets[i-1] + local_triangles[i-1].size();
+    }
     for (int i = 0; i < num_threads; ++i) {
         vertices.insert(vertices.end(), local_vertices[i].begin(), local_vertices[i].end());
         triangles.insert(triangles.end(), local_triangles[i].begin(), local_triangles[i].end());
         normals.insert(normals.end(), local_normals[i].begin(), local_normals[i].end());
         textures.insert(textures.end(), local_textures[i].begin(), local_textures[i].end());
+        
+        for (int& idx : local_mtl_idx[i]) {
+            idx += face_offsets[i];
+        }
+        mtls.insert(mtls.end(), local_mtls[i].begin(), local_mtls[i].end());
+        mtl_idx.insert(mtl_idx.end(), local_mtl_idx[i].begin(), local_mtl_idx[i].end());
     }
+
+    std::vector<material> materials;
+
+    if (!mtlpath.empty()) {
+        readmtl(mtlpath.c_str(), materials);
+        std::cout << materials.size() << "\n";
+        writemtl("output.mtl" , materials);
+    }
+
+ 
     munmap(file_in_memory, sb.st_size);
     close(fd);
+
+    std::cout << vertices.size() << "\n";
+    std::cout << textures.size() << "\n";
+    std::cout << normals.size() << "\n";
+    std::cout << triangles.size() << "\n";
+
 
 
 
@@ -94,7 +148,7 @@ int main(int argc, char *argv[]) {
     std::chrono::duration<double> read_seconds = readend - start;
     std::cout << "Read time: " << read_seconds.count() << " seconds." << std::endl;
 
-    write(argv[2], vertices, triangles, normals, textures);
+    write(argv[2], vertices, triangles, normals, textures, mtlpath, mtls, mtl_idx);
 
     auto writeend = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> write_seconds = writeend - start;
@@ -102,18 +156,18 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-bool read_float(const char*& ptr, float& out) {
+inline bool read_float(const char*& ptr,  float& out) {
 
     while (*ptr == ' ' || *ptr == '\t') ptr++;
     if (*ptr == '\n' || *ptr == '\0') {out = 0; return false;}
-    char* end;
-    out = strtof(ptr, &end);
-    if (end == ptr) {out = 0; return false;}
-    ptr = end;
+    char* stop;
+    out = strtof(ptr, &stop);
+    if (stop == ptr) {out = 0; return false;}
+    ptr = stop;
     return true;
 }
 
-bool read_int(const char*& ptr, int& out) {
+inline bool read_int(const char*& ptr, int& out) {
     while (*ptr == ' ' || *ptr == '\t') ++ptr;
     if (*ptr == '\n' || *ptr == '\0') return false;
     char* end;
@@ -124,23 +178,28 @@ bool read_int(const char*& ptr, int& out) {
 }
 
 enum class parse_state {
-    start_of_line, maybe_v, maybe_f, maybe_vt, maybe_vn, ignore, readingv, readingf, readingvt, readingvn
+    start_of_line, maybe_v, maybe_f, maybe_vt, maybe_vn, ignore, readingv, readingf, readingvt, readingvn, maybe_mtllib, readingmtllib, maybe_usemtl, reading_usemtl
 };
 
-void readobj(const char* data, off_t startindex, off_t endindex, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures) {
+void readobj(const char* data, off_t startindex, off_t endindex, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures, std::string& mtllib, vector<std::string>& mtls, vector<int>& mtl_idx) {
+    int mtl_start = 0;
+    std::string currmtl;
     parse_state currstate = parse_state::start_of_line;
-    int line = 0;
+    int faceidx = 0;
     for (int i = startindex; i < endindex; i++) {
         char ch = data[i];
         switch (currstate) {
             case parse_state::start_of_line:
-                line += 1;
                 if (ch == 'v') {
                     currstate = parse_state::maybe_v;
                 } else if (ch == 'f') {
                     currstate = parse_state::maybe_f;
                 } else if (ch == '\n') {
                     currstate = parse_state::start_of_line;
+                } else if (ch == 'm') {
+                    currstate = parse_state::maybe_mtllib;
+                } else if (ch == 'u') {
+                    currstate = parse_state::maybe_usemtl;
                 } else {
                     currstate = parse_state::ignore;
                 }
@@ -180,7 +239,40 @@ void readobj(const char* data, off_t startindex, off_t endindex, vector<vertex>&
                     currstate = parse_state::ignore;
                 }
                 break;  
-
+            case parse_state::maybe_mtllib:
+                if (ch == ' ') {
+                    currstate = parse_state::readingmtllib;
+                    mtl_start = i + 1;
+                } else if (ch == '\n') {
+                    currstate = parse_state::start_of_line;
+                }
+                break;
+            case parse_state::readingmtllib:
+            {
+                if (ch == '\n') {
+                    mtllib = std::string(&data[mtl_start], i - mtl_start);
+                    currstate = parse_state::start_of_line;
+                }
+                break;
+            }
+            case parse_state::maybe_usemtl:
+                if (ch == ' ') {
+                    currstate = parse_state::reading_usemtl;
+                    mtl_start = i + 1;
+                } else if (ch == '\n') {
+                    currstate = parse_state::start_of_line;
+                }
+                break;
+            case parse_state::reading_usemtl:
+            {
+                if (ch == '\n') {
+                    currmtl = std::string(&data[mtl_start], i - mtl_start);
+                    currstate = parse_state::start_of_line;
+                    mtl_idx.push_back(faceidx);
+                    mtls.push_back(currmtl);
+                }
+                break;
+            }
 
             case parse_state::ignore:
                 if (ch == '\n') {
@@ -226,6 +318,7 @@ void readobj(const char* data, off_t startindex, off_t endindex, vector<vertex>&
                 }
             case parse_state::readingf:
                 const char* ptr = &data[i];
+                faceidx += 1;
                 triangle f;
                 int* parts[9] = {
                     &f.v1, &f.vt1, &f.vn1,
@@ -267,9 +360,12 @@ size_t estimate_output_size(const std::vector<vertex>& vertices, const std::vect
     return size;
 }
 
-void write(std::string path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures) {
+void write(std::string path, vector<vertex>& vertices, vector<triangle>& triangles, vector<normal>& normals, vector<texture>& textures, std::string& mtllib, vector<std::string>& mtls, vector<int>& mtl_idx) {
     ofstream f_out(path);
 
+    if (!mtllib.empty()) {
+        f_out << "mtllib " << mtllib << "\n";
+    }
     for (auto v : vertices) {
         f_out << "v " << v.x << " " << v.y << " " << v.z << "\n";
     }
@@ -282,9 +378,26 @@ void write(std::string path, vector<vertex>& vertices, vector<triangle>& triangl
         f_out << "vt " << vt.u << " " << vt.v << " " << vt.w << "\n";
     }
 
-    for (auto f : triangles) {
-        f_out << "f " << f.v1 << "/" << f.vt1 << "/" << f.vn1 << " " << f.v2 << "/" << f.vt2 << "/" << f.vn2 << " " << f.v3 << "/" << f.vt3 << "/" << f.vn3 << "\n";
+
+    if (mtls.size() > 0) {
+        int face_index = 0;
+        unsigned long currmtl = 0;
+        for (auto f : triangles) {
+            if (currmtl < mtls.size()) {
+                if (face_index == mtl_idx[currmtl]) {
+                    f_out << "usemtl " << mtls[currmtl] << "\n";
+                    currmtl++;
+                }
+            }
+            f_out << "f " << f.v1 << "/" << f.vt1 << "/" << f.vn1 << " " << f.v2 << "/" << f.vt2 << "/" << f.vn2 << " " << f.v3 << "/" << f.vt3 << "/" << f.vn3 << "\n";
+            face_index++;
+        }
+    } else {
+        for (auto f : triangles) {
+            f_out << "f " << f.v1 << "/" << f.vt1 << "/" << f.vn1 << " " << f.v2 << "/" << f.vt2 << "/" << f.vn2 << " " << f.v3 << "/" << f.vt3 << "/" << f.vn3 << "\n";
+        }
     }
+    
 
     // for (auto v : vertices) {
     //     f_out << std::format("v {} {} {}\n", v.x, v.y, v.z);
