@@ -20,6 +20,6 @@ typedef struct material {
 
 } material;
 
-void readmtl(const char* data, off_t startindex, off_t endindex, std::vector<material>& materials);
+void readmtl(const char* path, std::vector<material>& materials);
 
 void writemtl(std::string path, std::vector<material>& materials);
